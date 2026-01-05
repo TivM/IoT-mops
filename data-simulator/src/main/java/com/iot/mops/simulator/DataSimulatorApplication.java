@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.web.client.RestTemplate;
@@ -35,15 +34,11 @@ public class DataSimulatorApplication implements CommandLineRunner {
     private final RestTemplate restTemplate;
     private final ThreadPoolTaskScheduler scheduler;
 
-    public DataSimulatorApplication(RestTemplateBuilder builder) {
-        this.restTemplate = builder
-                .additionalCustomizers(rt -> {
-                    if (rt.getRequestFactory() instanceof SimpleClientHttpRequestFactory factory) {
-                        factory.setConnectTimeout(2000);
-                        factory.setReadTimeout(2000);
-                    }
-                })
-                .build();
+    public DataSimulatorApplication() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(2000);
+        factory.setReadTimeout(2000);
+        this.restTemplate = new RestTemplate(factory);
         this.scheduler = new ThreadPoolTaskScheduler();
         this.scheduler.setPoolSize(4);
         this.scheduler.initialize();
