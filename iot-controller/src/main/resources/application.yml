@@ -1,0 +1,24 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: iot-controller
+  data:
+    mongodb:
+      uri: mongodb://mongodb:27017/iot
+  rabbitmq:
+    host: rabbitmq
+    port: 5672
+    username: guest
+    password: guest
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+
+app:
+  rabbit:
+    exchange: iot.events

@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: data-simulator
+
+simulator:
+  devices: 10
+  rate: 1
+  duration-seconds: 60
+  target-url: http://iot-controller:8080/api/ingest

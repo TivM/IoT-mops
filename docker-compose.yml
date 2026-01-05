@@ -1,0 +1,96 @@
+version: "3.9"
+
+services:
+  mongodb:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
+  iot-controller:
+    build:
+      context: .
+      dockerfile: iot-controller/Dockerfile
+    depends_on:
+      - mongodb
+      - rabbitmq
+    environment:
+      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/iot
+      SPRING_RABBITMQ_HOST: rabbitmq
+    ports:
+      - "8080:8080"
+
+  rule-engine:
+    build:
+      context: .
+      dockerfile: rule-engine/Dockerfile
+    depends_on:
+      - mongodb
+      - rabbitmq
+    environment:
+      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/iot
+      SPRING_RABBITMQ_HOST: rabbitmq
+    ports:
+      - "8081:8081"
+
+  data-simulator:
+    build:
+      context: .
+      dockerfile: data-simulator/Dockerfile
+    depends_on:
+      - iot-controller
+    environment:
+      SIMULATOR_DEVICES: 5
+      SIMULATOR_RATE: 1
+      SIMULATOR_DURATION_SECONDS: 120
+      SIMULATOR_TARGET_URL: http://iot-controller:8080/api/ingest
+
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+    depends_on:
+      - iot-controller
+      - rule-engine
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.2
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.12.2
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+
+volumes:
+  mongo-data:
+  es-data:
