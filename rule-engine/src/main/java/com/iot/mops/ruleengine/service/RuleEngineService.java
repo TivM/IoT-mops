@@ -2,7 +2,9 @@ package com.iot.mops.ruleengine.service;
 
 import com.iot.mops.common.dto.Alert;
 import com.iot.mops.common.dto.QueueEnvelope;
+import com.iot.mops.ruleengine.metrics.RuleMetrics;
 import com.iot.mops.ruleengine.store.AlertRepository;
+import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -23,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class RuleEngineService {
 
     private final AlertRepository alertRepository;
+    private final RuleMetrics metrics;
 
     @Value("${app.rules.window-size:10}")
     private int windowSize;
@@ -35,9 +38,15 @@ public class RuleEngineService {
     @RabbitListener(queues = "${app.rabbit.queue}")
     public void handle(QueueEnvelope envelope) {
         log.debug("Received envelope {}", envelope);
-
-        checkInstantRule(envelope);
-        checkWindowRule(envelope);
+        Timer.Sample timer = metrics.startTimer();
+        
+        try {
+            metrics.incrementMessagesProcessed();
+            checkInstantRule(envelope);
+            checkWindowRule(envelope);
+        } finally {
+            metrics.stopTimer(timer);
+        }
     }
 
     private void checkInstantRule(QueueEnvelope envelope) {
@@ -90,6 +99,15 @@ public class RuleEngineService {
                 .correlationId(envelope.getCorrelationId())
                 .build();
         alertRepository.save(alert);
+        
+        // Record metrics
+        if ("instant".equals(kind)) {
+            metrics.incrementInstantAlerts();
+        } else if ("window".equals(kind)) {
+            metrics.incrementWindowAlerts();
+        }
+        metrics.recordAlertForDevice(envelope.getDeviceId(), kind);
+        
         log.info("Alert triggered {}", alert);
     }
 

@@ -13,6 +13,11 @@ spring:
     username: guest
     password: guest
 
+logging:
+  level:
+    root: INFO
+    com.iot.mops: DEBUG
+
 management:
   endpoints:
     web:
@@ -22,7 +27,7 @@ management:
 app:
   rabbit:
     exchange: iot.events
-    queue: iot.rule-engine
+    queue: iot.events.queue
     routing-key: device.*
   rules:
     window-size: 10
